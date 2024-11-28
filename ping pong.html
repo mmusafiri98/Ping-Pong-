@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Game Ping-Pong</title>
+    <style>
+        /* Styles CSS */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            background: black;
+            border: 2px solid white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #keyboard button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #start {
+            background: red;
+            color: white;
+        }
+
+        #Restart {
+            background: greenyellow;
+            color: black;
+        }
+
+        #up,
+        #down {
+            background: gray;
+            color: white;
+        }
+
+        #Pause {
+            animation: blink 0.7s steps(2, pause) infinite;
+            background: rgb(137, 137, 185);
+            border-radius: 2px;
+            color: white;
+            cursor: pointer;
+            font-size: 28px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Ping-Pong</h1>
+    <audio id="background-music" loop autoplay>
+        <source src="Cyberpunk City.mp3" type="audio/mp3">
+        Il tuo browser non supporta il tag audio.
+    </audio>
+    <div>
+        <canvas id="pong" width="500" height="300"></canvas>
+    </div>
+    <div id="keyboard">
+        <button id="start">Start</button>
+        <button id="Restart">Restart</button>
+        <button id="Pause">Pause</button>
+        <button id="up"><span class="material-icons">arrow_upward</span></button>
+        <button id="down"><span class="material-icons">arrow_downward</span></button>
+    </div>
+    <script>
+        // Initialisation du canvas et du contexte
+        const canvas = document.getElementById("pong");
+        const context = canvas.getContext("2d");
+
+        // Dimensions des palettes et de la balle
+        const paddleWidth = 10, paddleHeight = 100;
+        const ballRadius = 10;
+
+        // Positions initiales des palettes et de la balle
+        let playerY = canvas.height / 2 - paddleHeight / 2;
+        let computerY = canvas.height / 2 - paddleHeight / 2;
+        let ballX = canvas.width / 2, ballY = canvas.height / 2;
+        let ballSpeedX = 4, ballSpeedY = 4;
+
+        // Scores
+        let playerScore = 0, computerScore = 0;
+
+        // État du jeu
+        let gameRunning = false;
+        let isPaused = false;
+
+        // Dessiner un rectangle
+        function drawRect(x, y, width, height, color) {
+            context.fillStyle = color;
+            context.fillRect(x, y, width, height);
+        }
+
+        // Dessiner un cercle
+        function drawCircle(x, y, radius, color) {
+            context.fillStyle = color;
+            context.beginPath();
+            context.arc(x, y, radius, 0, Math.PI * 2);
+            context.closePath();
+            context.fill();
+        }
+
+        // Dessiner du texte
+        function drawText(text, x, y, color) {
+            context.fillStyle = color;
+            context.font = "30px Arial";
+            context.fillText(text, x, y);
+        }
+
+        // Mettre à jour les positions et détecter les collisions
+        function update() {
+            //si il ya pas de demarage et il ya pause on renvoye ca dans le jeu 
+            if (!gameRunning || isPaused) return;
+            //pour la ballx on incremente la rapidite de la coordone x de la balle
+            ballX += ballSpeedX;
+            //pour la ball qui se trouve dans l asse y on incremente ca coordone
+            ballY += ballSpeedY;
+
+            // Rebondir sur les murs pour la coordone y            
+            if (ballY + ballRadius > canvas.height || ballY - ballRadius < 0) {
+                //on assigne ca coordone decroissant 
+                ballSpeedY = -ballSpeedY;
+            }
+
+            // Collision avec les palettes
+            if (
+                ballX - ballRadius < paddleWidth &&
+                ballY > playerY &&
+                ballY < playerY + paddleHeight
+            ) {
+                ballSpeedX = -ballSpeedX;
+            }
+
+            if (
+                ballX + ballRadius > canvas.width - paddleWidth &&
+                ballY > computerY &&
+                ballY < computerY + paddleHeight
+            ) {
+                ballSpeedX = -ballSpeedX;
+            }
+
+            // Vérifier si un joueur marque
+            if (ballX < 0) {
+                //incremnetation de le score pour le computer 
+                computerScore++;
+                //appel a la fontion pour reintialisation de la balle 
+                resetBall();
+            } else if (ballX > canvas.width) {
+                //incremnetation pour le score du jouer 
+                playerScore++;
+                //appel a la fonction pour reintialisation de la balle
+                resetBall();
+            }
+
+            // Déplacement ordinateur
+            computerY += (ballY - (computerY + paddleHeight / 2)) * 0.1;
+        }
+
+        // Réinitialisation de la balle
+        function resetBall() {
+            //on reinitialise la balle pour le coordone de milieu pour x et y
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+            //on assigne une rapidite pour la balle pour la coordone x et y 
+            ballSpeedX = -ballSpeedX;
+        }
+
+        // Fonction pause/reprise
+        function togglePause() {
+            //si il ya pas de demarage on renvoya ca 
+            if (!gameRunning) return;
+            //si il ya pas la pause on assigne une pause 
+            isPaused = !isPaused;
+            //on cree un bouton pause qui contiendra notre id pause en chaine des caractere 
+            const pauseButton = document.getElementById("Pause");
+            //que quand on clique grace a textContent ca deviennent la chaine de caractere Resume pour reprendre le jeu 
+            pauseButton.textContent = isPaused ? "Resume" : "Pause";
+            //si il  ya pause on arrete la music 
+            if (isPaused) {
+                backgroundMusic.pause();
+                //sinon reprend la music 
+            } else {
+                backgroundMusic.play();
+            }
+        }
+
+        // fonction pour Dessiner le jeu
+        function render() {
+            //ajout de fonction pour dessine le rectangle et text et circle pour le joue
+            drawRect(0, 0, canvas.width, canvas.height, "black");
+
+            drawRect(canvas.width / 2 - 1, 0, 2, canvas.height, "white");
+
+            drawText(playerScore, canvas.width / 4, 50, "white");
+            drawText(computerScore, 3 * canvas.width / 4, 50, "white");
+
+            drawRect(0, playerY, paddleWidth, paddleHeight, "violet");
+            drawRect(canvas.width - paddleWidth, computerY, paddleWidth, paddleHeight, "red");
+
+            drawCircle(ballX, ballY, ballRadius, "white");
+        }
+
+        // Contrôle des palettes pour le mouvement e n haut  avec l ajout de l evenement de clique en haut 
+        document.getElementById("up").addEventListener("click", () => {
+            //le jouer c est place l asse y 
+            playerY = Math.max(playerY - 40, 0);
+        });
+        //ajout de l evenement click  pour le mouvement en bas 
+        document.getElementById("down").addEventListener("click", () => {
+            //pour le jouer qui se trouve dans le coordone y
+            playerY = Math.min(playerY + 40, canvas.height - paddleHeight);
+        });
+
+        // Bouton start pour commence le jeux avec l evenement click 
+        document.getElementById("start").addEventListener("click", () => {
+            //si il ya pas de demarage du jeux 
+            if (!gameRunning) {
+                //demarage est assigne a vrai 
+                gameRunning = true;
+                //la pause est assigne a false 
+                isPaused = false;
+                //document .elementByd identifient le text contenant la pause presente dans le bouton pour la pause 
+                document.getElementById("Pause").textContent = "Pause";
+                //appel a la fonction pour commence le jeux 
+                StartGame();
+                //pour commence le jeux 
+                backgroundMusic.play();
+            }
+        });
+
+        // Bouton restart pour redemmarer le jeux a partire de   l evenement du clique 
+        document.getElementById("Restart").addEventListener("click", () => {
+            //le demmarage est rinitalize 
+            gameRunning = false;
+            //le score du jouer aussi
+            playerScore = 0;
+            //le score de l ordinateur aussii
+            computerScore = 0;
+
+            //appel a la fonction resetBall pour Réinitialisation de la balle
+            resetBall();
+            //appele la fonction render pour dessiner  le jeu
+            render();
+        });
+
+        // Bouton pause pour ajoute l evenement de la pause a partire du clique a partire de la fonction togglePause 
+        document.getElementById("Pause").addEventListener("click", togglePause);
+        //backgroundMusic la variable est assigne a la chaine id element id backgorund-muaic 
+        const backgroundMusic = document.getElementById("background-music");
+
+        // fonction pour le commencement du joue
+        function StartGame() {
+            //si le demmarage il ya 
+            if (gameRunning) {
+                //il ya pas de pause 
+                if (!isPaused) {
+                    //on appel la fonction pour  Mettre à jour les positions et détecter les collisions
+                    update();
+                }
+                //on appel la fonction render pour dessiner  le jeu
+                render();
+
+                //on appel la fonction requestAnimatioFrame pour anime le jeux quand il commence 
+                requestAnimationFrame(StartGame);
+            }
+        }
+
+        // Initialisation du jeux 
+        render();
+    </script>
+</body>
+
+</html>
