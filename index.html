@@ -1,276 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <title>Game Ping-Pong free </title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: black;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
+<meta charset="UTF-8">
+<title>Pong ++</title>
+<style>
+    body {
+        background: #000;
+        margin: 0;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: white;
+        font-family: Arial;
+    }
 
-        canvas {
-            background: black;
-            border: 2px solid white;
-        }
-
-        h1 {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        #keyboard button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #start {
-            background: red;
-            color: white;
-        }
-
-        #Restart {
-            background: greenyellow;
-            color: black;
-        }
-
-        #up,
-        #down {
-            background: gray;
-            color: white;
-        }
-
-        #Pause {
-            animation: blink 0.7s steps(2, pause) infinite;
-            background: rgb(137, 137, 185);
-            border-radius: 2px;
-            color: white;
-            cursor: pointer;
-            font-size: 28px;
-        }
-    </style>
+    #score {
+        position: absolute;
+        top: 20px;
+        font-size: 36px;
+        font-weight: bold;
+    }
+</style>
 </head>
-
 <body>
-    <h1>Ping-Pong</h1>
 
-    <audio id="background-music" loop>
-        <source src="Cyberpunk City.mp3" type="audio/mp3">
-    </audio>
+<canvas id="gameCanvas" width="900" height="600"></canvas>
+<div id="score">0 - 0</div>
 
-    <div>
-        <canvas id="pong" width="500" height="300"></canvas>
-    </div>
+<script>
+// =========================================================
+//                   VARIABLES PRINCIPALES
+// =========================================================
 
-    <div id="keyboard">
-        <button id="start">Start</button>
-        <button id="Restart">Restart</button>
-        <button id="Pause">Pause</button>
-        <button id="up"><span class="material-icons">arrow_upward</span></button>
-        <button id="down"><span class="material-icons">arrow_downward</span></button>
-    </div>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-    <script>
-        const canvas = document.getElementById("pong");
-        const context = canvas.getContext("2d");
+let playerY = canvas.height / 2 - 50;
+let computerY = canvas.height / 2 - 50;
 
-        const paddleWidth = 10, paddleHeight = 100;
-        const ballRadius = 10;
+let paddleHeight = 100;
+let paddleWidth = 12;
 
-        let playerY = canvas.height / 2 - paddleHeight / 2;
-        let computerY = canvas.height / 2 - paddleHeight / 2;
-        let ballX = canvas.width / 2, ballY = canvas.height / 2;
-        let ballSpeedX = 4, ballSpeedY = 4;
+let ballX = canvas.width / 2;
+let ballY = canvas.height / 2;
+let ballSize = 12;
 
-        let playerScore = 0, computerScore = 0;
+let ballSpeedX = 6;
+let ballSpeedY = 6;
 
-        let gameRunning = false;
-        let isPaused = false;
-        let gameOver = false;
+let playerScore = 0;
+let computerScore = 0;
 
-        const backgroundMusic = document.getElementById("background-music");
+let gameRunning = true;
+let gameOver = false;
 
-        function drawRect(x, y, width, height, color) {
-            context.fillStyle = color;
-            context.fillRect(x, y, width, height);
-        }
+// =========================================================
+//                    INPUT JOUEUR
+// =========================================================
+document.addEventListener("mousemove", (e) => {
+    playerY = e.clientY - canvas.offsetTop - paddleHeight / 2;
+});
 
-        function drawCircle(x, y, radius, color) {
-            context.fillStyle = color;
-            context.beginPath();
-            context.arc(x, y, radius, 0, Math.PI * 2);
-            context.closePath();
-            context.fill();
-        }
+// =========================================================
+//                   CHECK GAME OVER
+// =========================================================
 
-        function drawText(text, x, y, color) {
-            context.fillStyle = color;
-            context.font = "30px Arial";
-            context.fillText(text, x, y);
-        }
+function checkWinner() {
+    if (playerScore >= 20) {
+        gameRunning = false;
+        gameOver = true;
+        alert("🎉 YOU WIN !");
+        return true;
+    }
 
-        // ----------------------------
-        //   IA PLUS FACILE À BATTRE
-        // ----------------------------
-        function moveAI() {
-            let aiCenter = computerY + paddleHeight / 2;
+    if (computerScore >= 20) {
+        gameRunning = false;
+        gameOver = true;
+        alert("💀 YOU LOSE !");
+        return true;
+    }
 
-            let error = Math.random() * 20 - 10;  
-            let target = ballY + error;
+    return false;
+}
 
-            computerY += (target - aiCenter) * 0.08;
+// =========================================================
+//                     RESET BALL
+// =========================================================
+function resetBall() {
+    ballX = canvas.width / 2;
+    ballY = canvas.height / 2;
 
-            if (computerY < 0) computerY = 0;
-            if (computerY + paddleHeight > canvas.height)
-                computerY = canvas.height - paddleHeight;
-        }
+    // Change de direction vers le joueur
+    ballSpeedX = -ballSpeedX;
+    ballSpeedY = (Math.random() * 6) - 3;
+}
 
-        // ----------------------------
-        //   CONDITIONS DE VICTOIRE
-        // ----------------------------
-        function checkWinner() {
-            if (playerScore >= 20) {
-                gameOver = true;
-                gameRunning = false;
-                backgroundMusic.pause();
-                alert("🎉 YOU WIN !!!");
-            }
+// =========================================================
+//                UPDATE – LOGIQUE DU JEU
+// =========================================================
 
-            if (computerScore >= 20) {
-                gameOver = true;
-                gameRunning = false;
-                backgroundMusic.pause();
-                alert("💀 YOU LOSE !");
-            }
-        }
+function update() {
+    if (!gameRunning || gameOver) return;
 
-        function update() {
-            if (!gameRunning || isPaused || gameOver) return;
+    // Déplacement balle
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
 
-            ballX += ballSpeedX;
-            ballY += ballSpeedY;
+    // Collision mur haut / bas
+    if (ballY <= 0 || ballY + ballSize >= canvas.height) {
+        ballSpeedY *= -1;
+    }
 
-            if (ballY + ballRadius > canvas.height || ballY - ballRadius < 0) {
-                ballSpeedY = -ballSpeedY;
-            }
+    // Paddle joueur
+    if (
+        ballX <= paddleWidth &&
+        ballY + ballSize >= playerY &&
+        ballY <= playerY + paddleHeight
+    ) {
+        ballSpeedX *= -1;
+    }
 
-            if (
-                ballX - ballRadius < paddleWidth &&
-                ballY > playerY &&
-                ballY < playerY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-            }
+    // Paddle IA
+    if (
+        ballX + ballSize >= canvas.width - paddleWidth &&
+        ballY + ballSize >= computerY &&
+        ballY <= computerY + paddleHeight
+    ) {
+        ballSpeedX *= -1;
+    }
 
-            if (
-                ballX + ballRadius > canvas.width - paddleWidth &&
-                ballY > computerY &&
-                ballY < computerY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-            }
+    // IA basique
+    if (computerY + paddleHeight / 2 < ballY) computerY += 4;
+    else computerY -= 4;
 
-            if (ballX < 0) {
-                computerScore++;
-                resetBall();
-                checkWinner();
-            } else if (ballX > canvas.width) {
-                playerScore++;
-                resetBall();
-                checkWinner();
-            }
+    // -------------------------------------------------------
+    //             SCORE + FIX DU GAME OVER
+    // -------------------------------------------------------
 
-            moveAI();
-        }
+    if (ballX < 0) {
+        computerScore++;
 
-        function resetBall() {
-            ballX = canvas.width / 2;
-            ballY = canvas.height / 2;
-            ballSpeedX = -ballSpeedX;
-        }
+        // STOP le jeu immédiatement si l’IA gagne
+        if (checkWinner()) return;
 
-        function togglePause() {
-            if (!gameRunning || gameOver) return;
+        resetBall();
+    }
 
-            isPaused = !isPaused;
-            document.getElementById("Pause").textContent =
-                isPaused ? "Resume" : "Pause";
+    if (ballX > canvas.width) {
+        playerScore++;
 
-            if (isPaused) {
-                backgroundMusic.pause();
-            } else {
-                backgroundMusic.play();
-            }
-        }
+        if (checkWinner()) return;
 
-        function render() {
-            drawRect(0, 0, canvas.width, canvas.height, "black");
+        resetBall();
+    }
 
-            drawRect(canvas.width / 2 - 1, 0, 2, canvas.height, "white");
+    // Afficher score
+    document.getElementById("score").innerText =
+        playerScore + " - " + computerScore;
+}
 
-            drawText(playerScore, canvas.width / 4, 50, "white");
-            drawText(computerScore, 3 * canvas.width / 4, 50, "white");
+// =========================================================
+//                     RENDER VISUEL
+// =========================================================
 
-            drawRect(0, playerY, paddleWidth, paddleHeight, "violet");
-            drawRect(canvas.width - paddleWidth, computerY, paddleWidth, paddleHeight, "red");
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            drawCircle(ballX, ballY, ballRadius, "white");
-        }
+    // Fond noir
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        document.getElementById("up").addEventListener("click", () => {
-            playerY = Math.max(playerY - 40, 0);
-        });
+    // Joueur
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, playerY, paddleWidth, paddleHeight);
 
-        document.getElementById("down").addEventListener("click", () => {
-            playerY = Math.min(playerY + 40, canvas.height - paddleHeight);
-        });
+    // IA
+    ctx.fillRect(canvas.width - paddleWidth, computerY, paddleWidth, paddleHeight);
 
-        document.getElementById("start").addEventListener("click", () => {
-            if (!gameRunning && !gameOver) {
-                gameRunning = true;
-                isPaused = false;
-                document.getElementById("Pause").textContent = "Pause";
-                StartGame();
-                backgroundMusic.play();
-            }
-        });
+    // Balle
+    ctx.fillRect(ballX, ballY, ballSize, ballSize);
+}
 
-        document.getElementById("Restart").addEventListener("click", () => {
-            playerScore = 0;
-            computerScore = 0;
-            gameRunning = false;
-            gameOver = false;
-            resetBall();
-            render();
-        });
+// =========================================================
+//                        GAME LOOP
+// =========================================================
 
-        document.getElementById("Pause").addEventListener("click", togglePause);
+function gameLoop() {
+    update();
+    render();
 
-        function StartGame() {
-            if (gameRunning && !gameOver) {
-                if (!isPaused) update();
-                render();
-                requestAnimationFrame(StartGame);
-            }
-        }
+    if (!gameOver) requestAnimationFrame(gameLoop);
+}
 
-        render();
-    </script>
+gameLoop();
+</script>
 </body>
-
 </html>
 
 
