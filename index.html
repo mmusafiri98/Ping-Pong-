@@ -1,78 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping-Pong Responsive</title>
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <title>Game Ping-Pong</title>
+
     <style>
         body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            color: white;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: black;
-            color: white;
             font-family: Arial, sans-serif;
         }
 
+        h1 {
+            margin: 10px 0;
+            text-align: center;
+            font-size: 5vw;
+            max-font-size: 30px;
+        }
+
+        /* CANVAS RESPONSIVE */
+        #container {
+            width: 95vw;
+            max-width: 700px;
+        }
+
         canvas {
+            width: 100%;
+            height: auto;
             background: black;
             border: 2px solid white;
         }
 
-        h1 {
-            margin-bottom: 20px;
-            text-align: center;
+        /* BOTTONI PICCOLI E ORIZZONTALI */
+        #keyboard {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         #keyboard button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 6px 12px;
+            font-size: 14px;
             border-radius: 5px;
             cursor: pointer;
+            border: none;
         }
 
-        #start {
-            background: red;
-            color: white;
-        }
+        #start { background: red; color: white; }
+        #Restart { background: yellowgreen; color: black; font-weight: bold; }
+        #Pause { background: steelblue; color: white; }
+        #up, #down { background: rgb(90, 90, 90); color: white; }
 
-        #Restart {
-            background: greenyellow;
-            color: black;
-        }
-
-        #up,
-        #down {
-            background: gray;
-            color: white;
-        }
-
-        #Pause {
-            animation: blink 0.7s steps(2, pause) infinite;
-            background: rgb(137, 137, 185);
-            border-radius: 2px;
-            color: white;
-            cursor: pointer;
-            font-size: 28px;
+        /* Icone piccole */
+        .material-icons {
+            font-size: 20px;
         }
     </style>
 </head>
 
 <body>
+
     <h1>Ping-Pong</h1>
 
     <audio id="background-music" loop>
         <source src="Cyberpunk City.mp3" type="audio/mp3">
     </audio>
 
-    <div>
-        <canvas id="pong" width="500" height="300"></canvas>
+    <div id="container">
+        <canvas id="pong"></canvas>
     </div>
 
     <div id="keyboard">
@@ -87,74 +92,75 @@
         const canvas = document.getElementById("pong");
         const context = canvas.getContext("2d");
 
-        const paddleWidth = 10, paddleHeight = 100;
-        const ballRadius = 10;
+        // 📌 CANVAS RESPONSIVE
+        function resizeCanvas() {
+            const width = document.getElementById("container").clientWidth;
+            canvas.width = width;
+            canvas.height = width * 0.6;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
 
-        let playerY = canvas.height / 2 - paddleHeight / 2;
-        let computerY = canvas.height / 2 - paddleHeight / 2;
-        let ballX = canvas.width / 2, ballY = canvas.height / 2;
-        let ballSpeedX = 4, ballSpeedY = 4;
+        // VARIABILI DI GIOCO
+        const paddleWidth = 10;
+        let paddleHeight;
 
+        let playerY, computerY;
+        let ballX, ballY, ballSpeedX, ballSpeedY;
+
+        let ballRadius;
         let playerScore = 0, computerScore = 0;
 
         let gameRunning = false;
         let isPaused = false;
         let gameOver = false;
 
-        const backgroundMusic = document.getElementById("background-music");
+        const bgMusic = document.getElementById("background-music");
 
-        function drawRect(x, y, width, height, color) {
-            context.fillStyle = color;
-            context.fillRect(x, y, width, height);
+        function resetSizes() {
+            paddleHeight = canvas.height * 0.35;
+            ballRadius = canvas.width * 0.02;
+
+            playerY = canvas.height / 2 - paddleHeight / 2;
+            computerY = canvas.height / 2 - paddleHeight / 2;
+
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+
+            ballSpeedX = canvas.width * 0.01;
+            ballSpeedY = canvas.height * 0.01;
         }
 
-        function drawCircle(x, y, radius, color) {
-            context.fillStyle = color;
+        resetSizes();
+
+        // FUNZIONI DI DISEGNO
+        function rect(x, y, w, h, c) {
+            context.fillStyle = c;
+            context.fillRect(x, y, w, h);
+        }
+
+        function circle(x, y, r, c) {
+            context.fillStyle = c;
             context.beginPath();
-            context.arc(x, y, radius, 0, Math.PI * 2);
-            context.closePath();
+            context.arc(x, y, r, 0, Math.PI * 2);
             context.fill();
         }
 
-        function drawText(text, x, y, color) {
-            context.fillStyle = color;
-            context.font = "30px Arial";
-            context.fillText(text, x, y);
+        function text(t, x, y, c) {
+            context.fillStyle = c;
+            context.font = (canvas.width * 0.08) + "px Arial";
+            context.fillText(t, x, y);
         }
 
-        // ----------------------------
-        //   IA PLUS FACILE À BATTRE
-        // ----------------------------
+        // IA
         function moveAI() {
             let aiCenter = computerY + paddleHeight / 2;
-
-            let error = Math.random() * 20 - 10;  
-            let target = ballY + error;
-
-            computerY += (target - aiCenter) * 0.08;
+            let target = ballY + (Math.random() * 40 - 20);
+            computerY += (target - aiCenter) * 0.07;
 
             if (computerY < 0) computerY = 0;
             if (computerY + paddleHeight > canvas.height)
                 computerY = canvas.height - paddleHeight;
-        }
-
-        // ----------------------------
-        //   CONDITIONS DE VICTOIRE
-        // ----------------------------
-        function checkWinner() {
-            if (playerScore >= 20) {
-                gameOver = true;
-                gameRunning = false;
-                backgroundMusic.pause();
-                alert("🎉 YOU WIN !!!");
-            }
-
-            if (computerScore >= 20) {
-                gameOver = true;
-                gameRunning = false;
-                backgroundMusic.pause();
-                alert("💀 YOU LOSE !");
-            }
         }
 
         function update() {
@@ -163,115 +169,99 @@
             ballX += ballSpeedX;
             ballY += ballSpeedY;
 
-            if (ballY + ballRadius > canvas.height || ballY - ballRadius < 0) {
+            if (ballY - ballRadius < 0 || ballY + ballRadius > canvas.height)
                 ballSpeedY = -ballSpeedY;
-            }
 
             if (
                 ballX - ballRadius < paddleWidth &&
                 ballY > playerY &&
                 ballY < playerY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-            }
+            ) ballSpeedX = -ballSpeedX;
 
             if (
                 ballX + ballRadius > canvas.width - paddleWidth &&
                 ballY > computerY &&
                 ballY < computerY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-            }
+            ) ballSpeedX = -ballSpeedX;
 
             if (ballX < 0) {
                 computerScore++;
-                resetBall();
-                checkWinner();
+                resetSizes();
             } else if (ballX > canvas.width) {
                 playerScore++;
-                resetBall();
-                checkWinner();
+                resetSizes();
             }
 
             moveAI();
         }
 
-        function resetBall() {
-            ballX = canvas.width / 2;
-            ballY = canvas.height / 2;
-            ballSpeedX = -ballSpeedX;
-        }
-
-        function togglePause() {
-            if (!gameRunning || gameOver) return;
-
-            isPaused = !isPaused;
-            document.getElementById("Pause").textContent =
-                isPaused ? "Resume" : "Pause";
-
-            if (isPaused) {
-                backgroundMusic.pause();
-            } else {
-                backgroundMusic.play();
-            }
-        }
-
         function render() {
-            drawRect(0, 0, canvas.width, canvas.height, "black");
+            rect(0, 0, canvas.width, canvas.height, "black");
 
-            drawRect(canvas.width / 2 - 1, 0, 2, canvas.height, "white");
+            rect(canvas.width / 2 - 1, 0, 2, canvas.height, "white");
 
-            drawText(playerScore, canvas.width / 4, 50, "white");
-            drawText(computerScore, 3 * canvas.width / 4, 50, "white");
+            text(playerScore, canvas.width * 0.25, canvas.height * 0.15, "white");
+            text(computerScore, canvas.width * 0.7, canvas.height * 0.15, "white");
 
-            drawRect(0, playerY, paddleWidth, paddleHeight, "violet");
-            drawRect(canvas.width - paddleWidth, computerY, paddleWidth, paddleHeight, "red");
+            rect(0, playerY, paddleWidth, paddleHeight, "violet");
+            rect(canvas.width - paddleWidth, computerY, paddleWidth, paddleHeight, "red");
 
-            drawCircle(ballX, ballY, ballRadius, "white");
+            circle(ballX, ballY, ballRadius, "white");
         }
 
-        document.getElementById("up").addEventListener("click", () => {
-            playerY = Math.max(playerY - 40, 0);
-        });
+        // 🔼🔽 Bottoni movimento
+        document.getElementById("up").onclick = () => {
+            playerY = Math.max(playerY - canvas.height * 0.1, 0);
+        };
+        document.getElementById("down").onclick = () => {
+            playerY = Math.min(playerY + canvas.height * 0.1, canvas.height - paddleHeight);
+        };
 
-        document.getElementById("down").addEventListener("click", () => {
-            playerY = Math.min(playerY + 40, canvas.height - paddleHeight);
-        });
-
-        document.getElementById("start").addEventListener("click", () => {
+        // START
+        document.getElementById("start").onclick = () => {
             if (!gameRunning && !gameOver) {
+                resetSizes();
                 gameRunning = true;
-                isPaused = false;
-                document.getElementById("Pause").textContent = "Pause";
-                StartGame();
-                backgroundMusic.play();
+                bgMusic.play();
+                loop();
             }
-        });
+        };
 
-        document.getElementById("Restart").addEventListener("click", () => {
+        // RESTART
+        document.getElementById("Restart").onclick = () => {
             playerScore = 0;
             computerScore = 0;
             gameRunning = false;
+            isPaused = false;
             gameOver = false;
-            resetBall();
+            resetSizes();
             render();
-        });
+        };
 
-        document.getElementById("Pause").addEventListener("click", togglePause);
+        // PAUSA
+        document.getElementById("Pause").onclick = () => {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            document.getElementById("Pause").innerText =
+                isPaused ? "Resume" : "Pause";
 
-        function StartGame() {
+            if (isPaused) bgMusic.pause();
+            else bgMusic.play();
+        };
+
+        // LOOP
+        function loop() {
             if (gameRunning && !gameOver) {
-                if (!isPaused) update();
+                update();
                 render();
-                requestAnimationFrame(StartGame);
+                requestAnimationFrame(loop);
             }
         }
 
         render();
     </script>
+
 </body>
-
 </html>
-
 
 
